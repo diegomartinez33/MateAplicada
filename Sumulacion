@@ -1,0 +1,149 @@
+% Proyecto Matematicas Aplicadas / Modelado y Simulación
+%Variables y parametros
+% Que dependen de t:
+% dPas, dPvs, dPvp, Ql*, Fs*, Qr*, Fp*, CvCO2, CaCO2*, CvO2, CaO2*
+% PaCO2, PaO2, Sl, Sr, Pap*, sigmal, sigmar
+% con * se pueden expresar en terminos de las otras variables
+
+% Como parametros
+% cas, cvs, cvp, cap, VAco2, VAo2, VBco2, VTco2, VTo2, gammal, gammar,
+% alphal, alphar, betal, betar, MRco2, MRo2, MRBco2, dVA, PIco2, PIo2, Rs,
+% Rp, FBo, cl, cr, H, Kco2, kco2, Vo, sigmal, sigmar, k1, k2,
+
+%Otros
+% td, k, !PvCO2, !PvO2, !PBCO2, Gp, Ip, Gc, Ic, !dVE, !dVD
+
+function Sim_Proyecto
+clear all; close all; clc; 
+global cas cvs cvp cap VAco2 VAo2 VTco2 VTo2 gammal gammar alphal alphar
+global betal betar MRco2 MRo2 PIco2 PIo2 Rs Rp cl cr H Kco2
+global kco2 Vo k1 k2 Gp Gc Ip Ic dVD
+
+%Vector de tiempo
+tspan=linspace(0,10,500);
+
+%Valores al final del paper.
+%Falaría variar los parametros deseados para ver las respuestas en las
+%variables.
+cas=0.01002;cvs=0.643;cvp=0.1394;cap=0.03557;VAco2=3.2;VAo2=2.5;VTco2=15;
+VTo2=6;gammal=37.33;gammar=11.88;alphal=89.47;alphar=28.46;betal=85.89;
+betar=2.08;MRco2=0.26;MRo2=0.31;PIco2=0;PIo2=150;Rs=20;Rp=1.4;%dVA=5.6
+cl=0.01289;cr=0.06077;H=70;Kco2=0.0065;kco2=0.244;Vo=5;k1=0.2;k2=0.046;
+Gp=1.144;Gc=30.240;Ip=35.5;Ic=35.5;dVD=2.4;
+
+% Y: matriz de 11 x 3 (cada una de las variables dado los 3 valores de parametros)
+%Y: 1-Pas, 2-Pvs, 3-Pvp, 4-CvCO2, 5-CvO2, 
+%   6-PaCO2, 7-PaO2, 8-sigmal,9-sigmar, 10-Sl, 11-Sr.
+iniciales=[100;4;5;0.535;0.147;40;90;0;0;72;5.488];
+
+[T,Y]=ode45(@ecuaciones,tspan,iniciales);
+
+%Las otras variables expresadas en las variables del sistema de equaciones
+Pap=(Vo-cas*Y(:,1)-cvs*Y(:,2)-cvp*Y(:,3))/cap;
+Ql=H*Y(:,10).*((cl*Y(:,3))./Y(:,1));
+Qr=H*Y(:,11).*((cr*Y(:,2))./Pap);
+Fs=(Y(:,1)-Y(:,2))/Rs;
+Fp=(Pap-Y(:,3))/Rp;
+CaCO2=Kco2*Y(:,6)+kco2;
+CaO2=k1*((1-exp(-k2*Y(:,7))).^2);
+PvCO2=(Y(:,4)-kco2)/Kco2;
+PvO2=(log(1-sqrt(Y(:,5)/k1)))/(-k2);
+dVE=Gp*exp(-0.05*Y(:,7)).*(Y(:,6)-Ip)+Gc*(Y(:,6)-Ic);
+dVA=dVE-dVD;
+
+figure();
+plot(T,Y,T,Pap,T,Ql,T,Qr,T,Fs,T,Fp,T,CaCO2,T,CaO2,T,PvCO2,T,PvO2);
+title('Sistema Circulatorio-Respiratorio');
+xlabel('Tiempo');
+legend('Pas','Pvs','Pvp','CvCO2','CvO2','PaCO2','PaO2','sigmal','sigmar',...
+    'Sl','Sr','Pap','Ql','Qr','Fs','Fp','CaCO2','CaO2','PvCO2','PvO2');
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if ~exist('ImageVar')
+    mkdir('ImageVar');
+else
+    rmdir('ImageVar','s');
+    mkdir('ImageVar');
+end
+
+figure();
+subplot(221);plot(T,Y(:,1));title('Pas');xlabel('Tiempo');ylabel('mmHg');
+subplot(222);plot(T,Y(:,2));title('Pvs');xlabel('Tiempo');ylabel('mmHg');
+subplot(223);plot(T,Y(:,3));title('Pvp');xlabel('Tiempo');ylabel('mmHg');
+subplot(224);plot(T,Pap);title('Pap');xlabel('Tiempo');ylabel('mmHg');
+print(fullfile('ImageVar','PresionesSang'),'-dpng');
+
+figure();
+subplot(221);plot(T,Y(:,4));title('CvCO2');xlabel('Tiempo');ylabel('l(STPD)/l');
+subplot(222);plot(T,Y(:,5));title('CvO2');xlabel('Tiempo');ylabel('l(STPD)/l');
+subplot(223);plot(T,CaCO2);title('CaCO2');xlabel('Tiempo');ylabel('l(STPD)/l');
+subplot(224);plot(T,CaO2);title('CaO2');xlabel('Tiempo');ylabel('l(STPD)/l');
+print(fullfile('ImageVar','ConcGases'),'-dpng');
+
+figure();
+subplot(221);plot(T,Y(:,6));title('PaCO2');xlabel('Tiempo');ylabel('mmHg');
+subplot(222);plot(T,Y(:,7));title('PaO2');xlabel('Tiempo');ylabel('mmHg');
+subplot(223);plot(T,PvCO2);title('PvCO2');xlabel('Tiempo');ylabel('mmHg');
+subplot(224);plot(T,PvO2);title('PvO2');xlabel('Tiempo');ylabel('mmHg');
+print(fullfile('ImageVar','PresGases'),'-dpng');
+
+ 
+figure();
+subplot(121);plot(T,Y(:,10));title('Sl');xlabel('Tiempo');ylabel('mmHg');
+subplot(122);plot(T,Y(:,11));title('Sr');xlabel('Tiempo');ylabel('mmHg');
+print(fullfile('ImageVar','Ss'),'-dpng');
+
+figure();
+subplot(121);plot(T,Ql);title('Ql');xlabel('Tiempo');ylabel('l/min');
+subplot(122);plot(T,Qr);title('Qr');xlabel('Tiempo');ylabel('l/min');
+print(fullfile('ImageVar','Qs'),'-dpng');
+
+figure();
+subplot(121);plot(T,Fs);title('Fs');xlabel('Tiempo');ylabel('l/min');
+subplot(122);plot(T,Fp);title('Fp');xlabel('Tiempo');ylabel('l/min');
+print(fullfile('ImageVar','Fss'),'-dpng');
+
+figure();
+plot(T,dVA);title('dVA');xlabel('Tiempo');ylabel('l(BTPD)/min');
+print(fullfile('ImageVar','dVA'),'-dpng');
+end
+
+%Y: 1-Pas, 2-Pvs, 3-Pvp, 4-CvCO2, 5-CvO2, 
+%   6-PaCO2, 7-PaO2, 8-sigmal,9-sigmar, 10-Sl, 11-Sr.
+
+% Ql*, Fs*, Qr*, Fp*,CaCO2*, CaO2*, Pap*
+
+function dy = ecuaciones(t,y)
+global cas cvs cvp cap VAco2 VAo2 VTco2 VTo2 gammal gammar alphal alphar
+global betal betar MRco2 MRo2 PIco2 PIo2 Rs Rp cl cr H Kco2
+global kco2 Vo k1 k2 Gp Gc Ip Ic dVD
+
+dy=zeros(11,1);
+
+%variables en terminos de variables del sistema de ecuaciones
+Pap=(Vo-cas*y(1)-cvs*y(2)-cvp*y(3))/cap;
+Ql=H*y(10)*((cl*y(3))/y(1));
+Qr=H*y(11)*((cr*y(2))/Pap);
+Fs=(y(1)-y(2))/Rs;
+Fp=(Pap-y(3))/Rp;
+CaCO2=Kco2*y(6)+kco2;
+CaO2=k1*((1-exp(-k2*y(7)))^2);
+dVE=Gp*exp(-0.05*y(7)).*(y(6)-Ip)+Gc*(y(6)-Ic);
+dVA=dVE-dVD;
+
+%Y: 1-Pas, 2-Pvs, 3-Pvp, 4-CvCO2, 5-CvO2, 
+%   6-PaCO2, 7-PaO2, 8-sigmal,9-sigmar, 10-Sl, 11-Sr.
+%Sistema de ecuaciones
+dy(1)=(Ql-Fs)/cas;
+dy(2)=(-Qr+Fs)/cvs;
+dy(3)=(-Ql+Fp)/cvp;
+dy(6)=(863*Fp*(y(4)-CaCO2)+dVA*(PIco2-y(6)))/VAco2;
+dy(7)=(863*Fp*(y(5)-CaO2)+dVA*(PIo2-y(7)))/VAo2;
+dy(4)=(MRco2+Fs*(CaCO2-y(4)))/VTco2;
+dy(5)=(MRo2+Fs*(CaO2-y(5)))/VTo2;
+dy(10)=y(8);
+dy(11)=y(9);
+dy(8)=-gammal*y(8)-alphal*y(10)+betal*H;
+dy(9)=-gammar*y(9)-alphar*y(11)+betar*H;
+
+end
